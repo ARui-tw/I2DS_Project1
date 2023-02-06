@@ -4,78 +4,74 @@
  * as a guideline for developing your own functions.
  */
 
-#include "communicate.h"
 #include <iostream>
 
-bool_t *
-join_1_svc(char *IP, int Port,  struct svc_req *rqstp)
-{
-	static bool_t  result;
+#include "communicate.h"
 
-	/*
-	 * insert server code here
-	 */
-	 std::cout << "In join_1_svc\n";
+#define MAXCLIENT 7;
 
-	return &result;
+bool_t *join_1_svc(char *IP, int Port, struct svc_req *rqstp) {
+    static bool_t result;
+
+    /*
+     * insert server code here
+     */
+    std::cout << "In join_1_svc\n";
+    std::cout << IP << std::endl;
+    std::cout << Port << std::endl;
+
+    return &result;
 }
 
-bool_t *
-leave_1_svc(char *IP, int Port,  struct svc_req *rqstp)
-{
-	static bool_t  result;
+bool_t *leave_1_svc(char *IP, int Port, struct svc_req *rqstp) {
+    static bool_t result;
 
-	/*
-	 * insert server code here
-	 */
+    /*
+     * insert server code here
+     */
 
-	return &result;
+    return &result;
 }
 
-bool_t *
-subscribe_1_svc(char *IP, int Port, char *Article,  struct svc_req *rqstp)
-{
-	static bool_t  result;
+bool_t *subscribe_1_svc(char *IP, int Port, char *Article,
+                        struct svc_req *rqstp) {
+    static bool_t result;
 
-	/*
-	 * insert server code here
-	 */
+    /*
+     * insert server code here
+     */
 
-	return &result;
+    return &result;
 }
 
-bool_t *
-unsubscribe_1_svc(char *IP, int Port, char *Article,  struct svc_req *rqstp)
-{
-	static bool_t  result;
+bool_t *unsubscribe_1_svc(char *IP, int Port, char *Article,
+                          struct svc_req *rqstp) {
+    static bool_t result;
 
-	/*
-	 * insert server code here
-	 */
+    /*
+     * insert server code here
+     */
 
-	return &result;
+    return &result;
 }
 
-bool_t *
-publish_1_svc(char *Article, char *IP, int Port,  struct svc_req *rqstp)
-{
-	static bool_t  result;
+bool_t *publish_1_svc(char *Article, char *IP, int Port,
+                      struct svc_req *rqstp) {
+    static bool_t result;
 
-	/*
-	 * insert server code here
-	 */
+    /*
+     * insert server code here
+     */
 
-	return &result;
+    return &result;
 }
 
-bool_t *
-ping_1_svc(struct svc_req *rqstp)
-{
-	static bool_t  result;
+bool_t *ping_1_svc(struct svc_req *rqstp) {
+    static bool_t result;
 
-	/*
-	 * insert server code here
-	 */
+    /*
+     * insert server code here
+     */
 
-	return &result;
+    return &result;
 }
