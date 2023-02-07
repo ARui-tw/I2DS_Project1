@@ -8,7 +8,17 @@
 
 #include "communicate.h"
 
-#define MAXCLIENT 7;
+#define MAXCLIENT 7
+
+int current_client_count = 0;
+
+struct client_info {
+    char *IP;
+    int Port;
+    bool used = false;
+};
+
+client_info client_list[MAXCLIENT];
 
 bool_t *join_1_svc(char *IP, int Port, struct svc_req *rqstp) {
     static bool_t result;
@@ -21,6 +31,35 @@ bool_t *join_1_svc(char *IP, int Port, struct svc_req *rqstp) {
     std::cout << Port << std::endl;
     std::cout << std::endl;
 
+    int empty_slot = -1;
+
+    // check if the client is already in the list and keep track of the
+    // number of clients
+    for (int i = 0; i < MAXCLIENT; i++) {
+        if (client_list[i].used == true) {
+            if (client_list[i].IP == IP && client_list[i].Port == Port) {
+                std::cout << "Client already in the list\n";
+                result = true;
+                return &result;
+            }
+        }
+        if (empty_slot == -1 && client_list[i].used == false) {
+            empty_slot = i;
+        }
+    }
+
+    // FIXME: use better data structure?
+    if (empty_slot != -1) {
+        client_list[empty_slot].IP = IP;
+        client_list[empty_slot].Port = Port;
+        client_list[empty_slot].used = true;
+        current_client_count++;
+        result = true;
+    } else {
+        std::cout << "No empty slot for new client\n";
+        result = false;
+    }
+
     return &result;
 }
 
@@ -30,11 +69,24 @@ bool_t *leave_1_svc(char *IP, int Port, struct svc_req *rqstp) {
     /*
      * insert server code here
      */
+
     std::cout << "In leave_1_svc\n";
     std::cout << IP << std::endl;
     std::cout << Port << std::endl;
     std::cout << std::endl;
 
+    for (int i = 0; i < MAXCLIENT; i++) {
+        if (client_list[i].used == true) {
+            if (client_list[i].IP == IP && client_list[i].Port == Port) {
+                client_list[i].used = false;
+                current_client_count--;
+                result = true;
+                return &result;
+            }
+        }
+    }
+
+    result = false;
     return &result;
 }
 

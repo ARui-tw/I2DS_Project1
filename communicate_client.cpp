@@ -102,12 +102,8 @@ void *startUPServer(void *a) {
 
 void communicate_prog_1(char *host) {
     CLIENT *clnt;
-    bool_t *result_1;
-    char *join_1_IP;
-    int join_1_Port;
-    bool_t *result_2;
-    char *leave_1_IP;
-    int leave_1_Port;
+    bool_t *result_join;
+    bool_t *result_leave;
     bool_t *result_3;
     char *subscribe_1_IP;
     int subscribe_1_Port;
@@ -167,7 +163,8 @@ void communicate_prog_1(char *host) {
     while (1) {
         // TODO: Add menu, and formatting
         printf("> ");
-        ch = getchar(); getchar();
+        ch = getchar();
+        getchar();
         if (ch == 'q' || ch == EOF) {
             break;
         }
@@ -180,16 +177,31 @@ void communicate_prog_1(char *host) {
 
         switch (ch) {
             case '1':
-                result_1 = join_1(client_IP, UDP_Port, clnt);
-                if (result_1 == (bool_t *)NULL) {
+                result_join = join_1(client_IP, UDP_Port, clnt);
+
+                // FIXME: better handler when server is down
+                if (result_join == (bool_t *)NULL) {
                     clnt_perror(clnt, "call failed");
                 }
+
+                if (*result_join)
+                    printf("Join Successfully\n");
+                else
+                    printf("Join Failed\n");
+
                 break;
             case '2':
-                result_2 = leave_1(client_IP, UDP_Port, clnt);
-                if (result_2 == (bool_t *)NULL) {
+                result_leave = leave_1(client_IP, UDP_Port, clnt);
+
+                // FIXME: better handler when server is down
+                if (result_leave == (bool_t *)NULL) {
                     clnt_perror(clnt, "call failed");
                 }
+
+                if (*result_leave)
+                    printf("Leave Successfully\n");
+                else
+                    printf("Leave Failed\n");
                 break;
             case '3':
                 // result_3 = subscribe_1(subscribe_1_IP, subscribe_1_Port,
@@ -208,13 +220,18 @@ void communicate_prog_1(char *host) {
                 // }
                 // break;
             case '6':
-                // result_6 = ping_1(ping_1_Article, ping_1_IP,
-                // ping_1_Port, clnt); if (result_6 == (bool_t *) NULL) {
-                // 	clnt_perror (clnt, "call failed");
-                // }
-                // break;
+                result_6 = ping_1(clnt);
+                if (result_6 == (bool_t *)NULL) {
+                    // clnt_perror (clnt, "call failed");
+                    printf("Server is down\n");
+
+                } else {
+                    printf("Server is up\n");
+                }
+                break;
 
             default:
+                printf("Invalid option\n");
                 break;
         }
     }
@@ -222,25 +239,6 @@ void communicate_prog_1(char *host) {
     // kill UDP server thread
     pthread_cancel(t);
 
-
-    /*
-    result_3 = subscribe_1(subscribe_1_IP, subscribe_1_Port,
-    subscribe_1_Article, clnt); if (result_3 == (bool_t *) NULL) {
-    	clnt_perror (clnt, "call failed");
-    }
-    result_4 = unsubscribe_1(unsubscribe_1_IP, unsubscribe_1_Port,
-    unsubscribe_1_Article, clnt); if (result_4 == (bool_t *) NULL) {
-    	clnt_perror (clnt, "call failed");
-    }
-    result_5 = publish_1(publish_1_Article, publish_1_IP, publish_1_Port,
-    clnt); if (result_5 == (bool_t *) NULL) { 	clnt_perror (clnt, "call
-    failed");
-    }
-    result_6 = ping_1(clnt);
-    if (result_6 == (bool_t *) NULL) {
-    	clnt_perror (clnt, "call failed");
-    }
-    */
 #ifndef DEBUG
     clnt_destroy(clnt);
 #endif /* DEBUG */
