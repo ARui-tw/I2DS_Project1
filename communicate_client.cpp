@@ -76,7 +76,7 @@ void *startUPServer(void *a) {
     s = (int *)a;
 
     while (1) {
-        printf("Waiting for data...");
+        printf("UDP Server Up!\n");
         fflush(stdout);
 
         // try to receive some data, this is a blocking call
@@ -122,21 +122,12 @@ void communicate_prog_1(char *host) {
     int publish_1_Port;
     bool_t *result_6;
 
-#ifndef DEBUG
-    clnt = clnt_create(host, COMMUNICATE_PROG, COMMUNICATE_VERSION, "udp");
-    if (clnt == NULL) {
-        clnt_pcreateerror(host);
-        exit(1);
-    }
-#endif /* DEBUG */
-
     char *client_IP = get_current_ip();
 
     printf("Client IP: %s\n", client_IP);
 
-    //--------
-    char myIP[16];
-    unsigned int myPort;
+    // Create UDP socket --------
+    unsigned int UDP_Port;
     struct sockaddr_in si_me, si_other;
 
     int s, i;
@@ -161,10 +152,9 @@ void communicate_prog_1(char *host) {
     bzero(&my_addr, sizeof(my_addr));
     socklen_t len = sizeof(my_addr);
     getsockname(s, (struct sockaddr *)&my_addr, &len);
-    myPort = ntohs(my_addr.sin_port);
+    UDP_Port = ntohs(my_addr.sin_port);
 
-    printf("Local port : %u\n", myPort);
-
+    printf("UDP Port : %u\n", UDP_Port);
     //-----
 
     pthread_t t;
@@ -173,34 +163,84 @@ void communicate_prog_1(char *host) {
 
     rc = pthread_create(&t, NULL, startUPServer, (void *)&s);
 
-    result_1 = join_1(client_IP, myPort, clnt);
-    if (result_1 == (bool_t *)NULL) {
-        clnt_perror(clnt, "call failed");
+    char ch;
+    while (1) {
+        // TODO: Add menu, and formatting
+        printf("> ");
+        ch = getchar(); getchar();
+        if (ch == 'q' || ch == EOF) {
+            break;
+        }
+
+        clnt = clnt_create(host, COMMUNICATE_PROG, COMMUNICATE_VERSION, "udp");
+        if (clnt == NULL) {
+            clnt_pcreateerror(host);
+            exit(1);
+        }
+
+        switch (ch) {
+            case '1':
+                result_1 = join_1(client_IP, UDP_Port, clnt);
+                if (result_1 == (bool_t *)NULL) {
+                    clnt_perror(clnt, "call failed");
+                }
+                break;
+            case '2':
+                result_2 = leave_1(client_IP, UDP_Port, clnt);
+                if (result_2 == (bool_t *)NULL) {
+                    clnt_perror(clnt, "call failed");
+                }
+                break;
+            case '3':
+                // result_3 = subscribe_1(subscribe_1_IP, subscribe_1_Port,
+                // subscribe_1_Article, clnt); if (result_3 == (bool_t *) NULL)
+                // { 	clnt_perror (clnt, "call failed"); }
+                // break;
+            case '4':
+                // result_4 = unsubscribe_1(unsubscribe_1_IP,
+                // unsubscribe_1_Port, unsubscribe_1_Article, clnt); if
+                // (result_4 == (bool_t *) NULL) { 	clnt_perror (clnt, "call
+                // failed"); } break;
+            case '5':
+                // result_5 = publish_1(publish_1_Article, publish_1_IP,
+                // publish_1_Port, clnt); if (result_5 == (bool_t *) NULL) {
+                // 	clnt_perror (clnt, "call failed");
+                // }
+                // break;
+            case '6':
+                // result_6 = ping_1(ping_1_Article, ping_1_IP,
+                // ping_1_Port, clnt); if (result_6 == (bool_t *) NULL) {
+                // 	clnt_perror (clnt, "call failed");
+                // }
+                // break;
+
+            default:
+                break;
+        }
     }
 
-    // Keep the server up
-    pthread_join(t, NULL);
+    // kill UDP server thread
+    pthread_cancel(t);
 
-    // result_2 = leave_1(leave_1_IP, leave_1_Port, clnt);
-    // if (result_2 == (bool_t *) NULL) {
-    // 	clnt_perror (clnt, "call failed");
-    // }
-    // result_3 = subscribe_1(subscribe_1_IP, subscribe_1_Port,
-    // subscribe_1_Article, clnt); if (result_3 == (bool_t *) NULL) {
-    // 	clnt_perror (clnt, "call failed");
-    // }
-    // result_4 = unsubscribe_1(unsubscribe_1_IP, unsubscribe_1_Port,
-    // unsubscribe_1_Article, clnt); if (result_4 == (bool_t *) NULL) {
-    // 	clnt_perror (clnt, "call failed");
-    // }
-    // result_5 = publish_1(publish_1_Article, publish_1_IP, publish_1_Port,
-    // clnt); if (result_5 == (bool_t *) NULL) { 	clnt_perror (clnt, "call
-    // failed");
-    // }
-    // result_6 = ping_1(clnt);
-    // if (result_6 == (bool_t *) NULL) {
-    // 	clnt_perror (clnt, "call failed");
-    // }
+
+    /*
+    result_3 = subscribe_1(subscribe_1_IP, subscribe_1_Port,
+    subscribe_1_Article, clnt); if (result_3 == (bool_t *) NULL) {
+    	clnt_perror (clnt, "call failed");
+    }
+    result_4 = unsubscribe_1(unsubscribe_1_IP, unsubscribe_1_Port,
+    unsubscribe_1_Article, clnt); if (result_4 == (bool_t *) NULL) {
+    	clnt_perror (clnt, "call failed");
+    }
+    result_5 = publish_1(publish_1_Article, publish_1_IP, publish_1_Port,
+    clnt); if (result_5 == (bool_t *) NULL) { 	clnt_perror (clnt, "call
+    failed");
+    }
+    result_6 = ping_1(clnt);
+    if (result_6 == (bool_t *) NULL) {
+    	clnt_perror (clnt, "call failed");
+    }
+    */
 #ifndef DEBUG
     clnt_destroy(clnt);
 #endif /* DEBUG */

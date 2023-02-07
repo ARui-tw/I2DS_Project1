@@ -19,6 +19,7 @@ bool_t *join_1_svc(char *IP, int Port, struct svc_req *rqstp) {
     std::cout << "In join_1_svc\n";
     std::cout << IP << std::endl;
     std::cout << Port << std::endl;
+    std::cout << std::endl;
 
     return &result;
 }
@@ -29,6 +30,10 @@ bool_t *leave_1_svc(char *IP, int Port, struct svc_req *rqstp) {
     /*
      * insert server code here
      */
+    std::cout << "In leave_1_svc\n";
+    std::cout << IP << std::endl;
+    std::cout << Port << std::endl;
+    std::cout << std::endl;
 
     return &result;
 }
