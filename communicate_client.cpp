@@ -19,6 +19,7 @@
 #include "communicate.h"
 
 #define BUFLEN 512
+#define MAXSTRING 120
 
 void die(char *s) {
     perror(s);
@@ -104,15 +105,12 @@ void communicate_prog_1(char *host) {
     CLIENT *clnt;
     bool_t *result_join;
     bool_t *result_leave;
-    bool_t *result_3;
-    char *subscribe_1_IP;
-    int subscribe_1_Port;
-    char *subscribe_1_Article;
+    bool_t *result_subscirbe;
     bool_t *result_4;
     char *unsubscribe_1_IP;
     int unsubscribe_1_Port;
     char *unsubscribe_1_Article;
-    bool_t *result_5;
+    bool_t *result_publish;
     char *publish_1_Article;
     char *publish_1_IP;
     int publish_1_Port;
@@ -204,21 +202,45 @@ void communicate_prog_1(char *host) {
                     printf("Leave Failed\n");
                 break;
             case '3':
-                // result_3 = subscribe_1(subscribe_1_IP, subscribe_1_Port,
-                // subscribe_1_Article, clnt); if (result_3 == (bool_t *) NULL)
-                // { 	clnt_perror (clnt, "call failed"); }
-                // break;
+                char subscribe_topic[12];
+
+                printf("Please input the type you wand to subscirbe:\n> ");
+                scanf("%s", subscribe_topic);
+
+                printf("Subscribe topic: %s\n", subscribe_topic);
+                result_subscirbe = subscribe_1(client_IP, UDP_Port, subscribe_topic, clnt);
+
+                // FIXME: better handler when server is down
+                if (result_leave == (bool_t *)NULL) {
+                    clnt_perror(clnt, "call failed");
+                }
+                // FIXME: Add message for subscribe fail or client not found?
+                if (*result_subscirbe)
+                    printf("Subscribe Successfully\n");
+                else
+                    printf("Subscribe Failed\n");
+
+                break;
             case '4':
                 // result_4 = unsubscribe_1(unsubscribe_1_IP,
                 // unsubscribe_1_Port, unsubscribe_1_Article, clnt); if
                 // (result_4 == (bool_t *) NULL) { 	clnt_perror (clnt, "call
                 // failed"); } break;
             case '5':
-                // result_5 = publish_1(publish_1_Article, publish_1_IP,
-                // publish_1_Port, clnt); if (result_5 == (bool_t *) NULL) {
-                // 	clnt_perror (clnt, "call failed");
-                // }
-                // break;
+                char publish_content[MAXSTRING];
+
+                printf("Please input the content you wand to publish:\n> ");
+                scanf("%s", publish_content);
+
+                printf("Publish Content: %s\n", publish_content);
+                result_publish = publish_1(publish_content, client_IP, UDP_Port, clnt);
+
+                // FIXME: better handler when server is down
+                if (result_publish == (bool_t *) NULL) {
+                	clnt_perror (clnt, "call failed");
+                }
+
+                break;
             case '6':
                 result_6 = ping_1(clnt);
                 if (result_6 == (bool_t *)NULL) {

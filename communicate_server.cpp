@@ -5,10 +5,26 @@
  */
 
 #include <iostream>
+#include <string>
+#include<stdio.h>	//printf
+#include<string.h> //memset
+#include<stdlib.h> //exit(0);
+#include<arpa/inet.h>
+#include<sys/socket.h>
 
 #include "communicate.h"
 
+#define BUFLEN 512	//Max length of buffer
 #define MAXCLIENT 7
+
+void sendToClient(char *ip, int port, char *Article);
+
+void die(char *s)
+{
+	perror(s);
+	exit(1);
+}
+
 
 int current_client_count = 0;
 
@@ -16,7 +32,10 @@ struct client_info {
     char *IP;
     int Port;
     bool used = false;
+    bool SubscribedList[8];
 };
+
+// enum category{Sports, Lifestyle, Entertainment, Business, Technology, Science, Politics, Health};
 
 client_info client_list[MAXCLIENT];
 
@@ -94,9 +113,66 @@ bool_t *subscribe_1_svc(char *IP, int Port, char *Article,
                         struct svc_req *rqstp) {
     static bool_t result;
 
-    /*
-     * insert server code here
-     */
+    printf("In subscribe_1_svc\n");
+    printf("%s\n", Article);
+    int i;
+
+    for (i = 0; i < MAXCLIENT; i++) {
+        if (client_list[i].used == true) {
+            if (client_list[i].IP == IP && client_list[i].Port == Port) {
+                break;
+            }
+        }
+    }
+    
+    if (i == MAXCLIENT) {
+        std::cout << "Client not found\n";
+        result = false;
+        return &result;
+    }
+
+    switch (Article[0]) {
+        case 'S':
+            if (Article[1] == 'p') {
+                client_list[i].SubscribedList[0] = true;
+                result = true;
+            }
+            else if (Article[1] == 'c') {
+                client_list[i].SubscribedList[5] = true;
+                result = true;
+            }
+            else
+                result = false;
+
+            break;
+        case 'L':
+            client_list[i].SubscribedList[1] = true;
+            result = true;
+            break;
+        case 'E':
+            client_list[i].SubscribedList[2] = true;
+            result = true;
+            break;
+        case 'B':
+            client_list[i].SubscribedList[3] = true;
+            result = true;
+            break;
+        case 'T':
+            client_list[i].SubscribedList[4] = true;
+            result = true;
+            break;
+        case 'P':
+            client_list[i].SubscribedList[6] = true;
+            result = true;
+            break;
+        case 'H':
+            client_list[i].SubscribedList[7] = true;
+            result = true;
+            break;
+        default:
+            result = false;
+            break;
+    }
 
     return &result;
 }
@@ -119,6 +195,71 @@ bool_t *publish_1_svc(char *Article, char *IP, int Port,
     /*
      * insert server code here
      */
+    std::cout << "In publish_1_svc\n";
+    std::cout << Article << std::endl;
+
+    std::string str(Article);
+
+    std::size_t pos = str.find(";");
+
+    std::string category = str.substr(0, pos);
+    int category_index = -1;
+
+    switch (Article[0]) {
+        case 'S':
+            if (Article[1] == 'p') 
+                category_index = 0;
+            else if (Article[1] == 'c') 
+                category_index = 5;
+            else
+                result = -1;
+
+            break;
+        case 'L':
+            category_index = 1;
+            break;
+        case 'E':
+            category_index = 2;
+            break;
+        case 'B':
+            category_index = 3;
+            break;
+        case 'T':
+            category_index = 4;
+            break;
+        case 'P':
+            category_index = 6;
+            break;
+        case 'H':
+            category_index = 5;
+            break;
+        default:
+            result = false;
+            break;
+    }
+
+    std::cout << "Category: " << category_index << std::endl;
+    std::string content = str.substr(pos + 1);
+    const int length = content.length();
+
+    char* content_char_array = new char[length + 1];
+    strcpy(content_char_array, content.c_str());
+
+    for (int i = 0; i < MAXCLIENT; i++) {
+        if (client_list[i].used == true) {
+            if (client_list[i].SubscribedList[category_index] == true) {
+                char *subscriber_ip;
+                int subscriber_port;
+
+                subscriber_ip = client_list[i].IP;
+                subscriber_port = client_list[i].Port;
+
+                sendToClient(subscriber_ip, subscriber_port, content_char_array);
+                std::cout << "Sent to " << subscriber_ip << " " << subscriber_port << std::endl;
+            }
+        }
+    }
+
 
     return &result;
 }
@@ -131,4 +272,41 @@ bool_t *ping_1_svc(struct svc_req *rqstp) {
      */
 
     return &result;
+}
+
+void sendToClient(char *ip, int port, char *message) {
+    struct sockaddr_in si_other;
+	int s, i;
+    socklen_t slen=sizeof(si_other);
+	char buf[BUFLEN];
+
+	if ( (s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+	{
+		die("socket");
+	}
+
+	memset((char *) &si_other, 0, sizeof(si_other));
+	si_other.sin_family = AF_INET;
+	si_other.sin_port = htons(port);
+	
+	if (inet_aton(ip , &si_other.sin_addr) == 0) 
+	{
+		fprintf(stderr, "inet_aton() failed\n");
+		exit(1);
+	}
+
+    //send the message
+    if (sendto(s, message, strlen(message) , 0 , (struct sockaddr *) &si_other, slen)==-1)
+    {
+        die("sendto()");
+    }
+    
+    //receive a reply and print it
+    //clear the buffer by filling null, it might have previously received data
+    memset(buf,'\0', BUFLEN);
+    //try to receive some data, this is a blocking call
+    if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen) == -1)
+    {
+        die("recvfrom()");
+    }
 }
