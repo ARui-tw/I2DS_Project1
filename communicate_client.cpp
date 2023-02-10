@@ -106,7 +106,7 @@ void communicate_prog_1(char *host) {
     bool_t *result_join;
     bool_t *result_leave;
     bool_t *result_subscirbe;
-    bool_t *result_4;
+    bool_t *result_unsubscirbe;
     char *unsubscribe_1_IP;
     int unsubscribe_1_Port;
     char *unsubscribe_1_Article;
@@ -206,9 +206,11 @@ void communicate_prog_1(char *host) {
 
                 printf("Please input the type you wand to subscirbe:\n> ");
                 scanf("%s", subscribe_topic);
+                getchar();
 
                 printf("Subscribe topic: %s\n", subscribe_topic);
-                result_subscirbe = subscribe_1(client_IP, UDP_Port, subscribe_topic, clnt);
+                result_subscirbe =
+                    subscribe_1(client_IP, UDP_Port, subscribe_topic, clnt);
 
                 // FIXME: better handler when server is down
                 if (result_leave == (bool_t *)NULL) {
@@ -222,22 +224,38 @@ void communicate_prog_1(char *host) {
 
                 break;
             case '4':
-                // result_4 = unsubscribe_1(unsubscribe_1_IP,
-                // unsubscribe_1_Port, unsubscribe_1_Article, clnt); if
-                // (result_4 == (bool_t *) NULL) { 	clnt_perror (clnt, "call
-                // failed"); } break;
+                char unsubscribe_topic[12];
+
+                printf("Please input the type you wand to unsubscirbe:\n> ");
+                scanf("%s", unsubscribe_topic);
+                getchar();
+
+                printf("UnSubscribe topic: %s\n", unsubscribe_topic);
+
+                result_unsubscirbe =
+                    unsubscribe_1(client_IP, UDP_Port, unsubscribe_topic, clnt);
+
+                // FIXME: Add message for subscribe fail or client not found?
+                if (*result_unsubscirbe)
+                    printf("Unsubscribe Successfully\n");
+                else
+                    printf("Unsubscribe Failed\n");
+
+                break;
             case '5':
                 char publish_content[MAXSTRING];
 
                 printf("Please input the content you wand to publish:\n> ");
                 scanf("%s", publish_content);
+                getchar();
 
                 printf("Publish Content: %s\n", publish_content);
-                result_publish = publish_1(publish_content, client_IP, UDP_Port, clnt);
+                result_publish =
+                    publish_1(publish_content, client_IP, UDP_Port, clnt);
 
                 // FIXME: better handler when server is down
-                if (result_publish == (bool_t *) NULL) {
-                	clnt_perror (clnt, "call failed");
+                if (result_publish == (bool_t *)NULL) {
+                    clnt_perror(clnt, "call failed");
                 }
 
                 break;
