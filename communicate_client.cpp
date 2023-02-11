@@ -21,6 +21,38 @@
 #define BUFLEN 512
 #define MAXSTRING 120
 
+// REF: https://stackoverflow.com/questions/5385777/implementing-a-fifo-mutex-in-pthreads
+typedef struct ticket_lock {
+    pthread_cond_t cond;
+    pthread_mutex_t mutex;
+    unsigned long queue_head, queue_tail;
+} ticket_lock_t;
+
+#define TICKET_LOCK_INITIALIZER { PTHREAD_COND_INITIALIZER, PTHREAD_MUTEX_INITIALIZER }
+
+void ticket_lock(ticket_lock_t *ticket)
+{
+    unsigned long queue_me;
+
+    pthread_mutex_lock(&ticket->mutex);
+    queue_me = ticket->queue_tail++;
+    while (queue_me != ticket->queue_head)
+    {
+        pthread_cond_wait(&ticket->cond, &ticket->mutex);
+    }
+    pthread_mutex_unlock(&ticket->mutex);
+}
+
+void ticket_unlock(ticket_lock_t *ticket)
+{
+    pthread_mutex_lock(&ticket->mutex);
+    ticket->queue_head++;
+    pthread_cond_broadcast(&ticket->cond);
+    pthread_mutex_unlock(&ticket->mutex);
+}
+
+ticket_lock_t lock = TICKET_LOCK_INITIALIZER;
+
 void die(char *s) {
     perror(s);
     exit(1);
@@ -76,9 +108,8 @@ void *startUPServer(void *a) {
     socklen_t slen = sizeof(si_other);
     s = (int *)a;
 
-    while (1) {
-        printf("UDP Server Up!\n");
-        fflush(stdout);
+
+    while (1) { 
 
         // try to receive some data, this is a blocking call
         if ((recv_len = recvfrom(*s, buf, BUFLEN, 0,
@@ -86,16 +117,19 @@ void *startUPServer(void *a) {
             die("recvfrom()");
         }
 
+        printf("acquired lock\n");
+        ticket_lock(&lock);
         // print details of the client/peer and the data received
         printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr),
                ntohs(si_other.sin_port));
         printf("Data: %s\n", buf);
+        ticket_unlock(&lock);
 
         // now reply the client with the same data
-        if (sendto(*s, buf, recv_len, 0, (struct sockaddr *)&si_other, slen) ==
-            -1) {
-            die("sendto()");
-        }
+        // if (sendto(*s, buf, recv_len, 0, (struct sockaddr *)&si_other, slen) ==
+        //     -1) {
+        //     die("sendto()");
+        // }
     }
 
     close(*s);
@@ -116,6 +150,11 @@ void communicate_prog_1(char *host) {
     int publish_1_Port;
     bool_t *result_6;
 
+    // if (pthread_mutex_init(&lock, NULL) != 0) {
+    //     printf("\n mutex init has failed\n");
+    //     return;
+    // }
+
     char *client_IP = get_current_ip();
 
     printf("Client IP: %s\n", client_IP);
@@ -130,6 +169,9 @@ void communicate_prog_1(char *host) {
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         die("socket");
     }
+
+    printf("UDP Server Up!\n");
+    fflush(stdout);
 
     // zero out the structure
     memset((char *)&si_me, 0, sizeof(si_me));
@@ -160,9 +202,16 @@ void communicate_prog_1(char *host) {
     char ch;
     while (1) {
         // TODO: Add menu, and formatting
+        ticket_lock(&lock);
         printf("> ");
         ch = getchar();
-        getchar();
+
+        if (ch != '\n') getchar();
+        else {
+            printf("> ");
+            ch = getchar();
+        }
+
         if (ch == 'q' || ch == EOF) {
             break;
         }
@@ -213,14 +262,16 @@ void communicate_prog_1(char *host) {
                     subscribe_1(client_IP, UDP_Port, subscribe_topic, clnt);
 
                 // FIXME: better handler when server is down
-                if (result_leave == (bool_t *)NULL) {
+                if (result_subscirbe == (bool_t *)NULL) {
                     clnt_perror(clnt, "call failed");
                 }
                 // FIXME: Add message for subscribe fail or client not found?
                 if (*result_subscirbe)
                     printf("Subscribe Successfully\n");
-                else
+                else {
                     printf("Subscribe Failed\n");
+                    while(((ch = getchar()) !='\n') && (ch != EOF));
+                }
 
                 break;
             case '4':
@@ -230,7 +281,7 @@ void communicate_prog_1(char *host) {
                 scanf("%s", unsubscribe_topic);
                 getchar();
 
-                printf("UnSubscribe topic: %s\n", unsubscribe_topic);
+                printf("Unsubscribe topic: %s\n", unsubscribe_topic);
 
                 result_unsubscirbe =
                     unsubscribe_1(client_IP, UDP_Port, unsubscribe_topic, clnt);
@@ -272,8 +323,11 @@ void communicate_prog_1(char *host) {
 
             default:
                 printf("Invalid option\n");
+                while(((ch = getchar()) !='\n') && (ch != EOF));
                 break;
         }
+        ticket_unlock(&lock);
+        printf("release lock\n");
     }
 
     // kill UDP server thread

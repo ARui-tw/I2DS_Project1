@@ -380,7 +380,7 @@ void sendToClient(char *ip, int port, char *message) {
     struct sockaddr_in si_other;
     int s, i;
     socklen_t slen = sizeof(si_other);
-    char buf[BUFLEN];
+    // char buf[BUFLEN];
 
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         die("socket");
@@ -404,12 +404,12 @@ void sendToClient(char *ip, int port, char *message) {
 
     // receive a reply and print it
     // clear the buffer by filling null, it might have previously received data
-    memset(buf, '\0', BUFLEN);
+    // memset(buf, '\0', BUFLEN);
     // try to receive some data, this is a blocking call
-    if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other, &slen) ==
-        -1) {
-        die("recvfrom()");
-    }
+    // if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other, &slen) ==
+    //     -1) {
+    //     die("recvfrom()");
+    // }
 }
 
 std::string *ParseInput(std::string input) {
