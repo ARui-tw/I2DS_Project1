@@ -13,7 +13,7 @@ SOURCES_SVC.h =
 SOURCES.x = communicate.x
 
 TARGETS_SVC.cpp = communicate_svc.cpp communicate_server.cpp communicate_xdr.cpp 
-TARGETS_CLNT.cpp = communicate_clnt.cpp communicate_client.cpp communicate_xdr.cpp 
+TARGETS_CLNT.cpp = communicate_clnt.cpp communicate_client.cpp communicate_xdr.cpp ticket_lock.cpp
 TARGETS = communicate.h communicate_xdr.cpp communicate_clnt.cpp communicate_svc.cpp communicate_client.cpp communicate_server.cpp
 
 OBJECTS_CLNT = $(SOURCES_CLNT.cpp:%.cpp=%.o) $(TARGETS_CLNT.cpp:%.cpp=%.o)
