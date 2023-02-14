@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <string>
+#include <unordered_set>
 
 #include "communicate.h"
 
@@ -33,23 +34,23 @@ struct client_info {
     int Port;
     bool used = false;
     bool SubscribedList[8];
+    std::unordered_set<std::string> SubscribedOriginator;
+    std::unordered_set<std::string> SubscribedOrg;
 };
-
-// enum category{Sports, Lifestyle, Entertainment, Business, Technology,
-// Science, Politics, Health};
 
 client_info client_list[MAXCLIENT];
 
 bool_t *join_1_svc(char *IP, int Port, struct svc_req *rqstp) {
     static bool_t result;
 
-    /*
-     * insert server code here
-     */
-    std::cout << "In join_1_svc\n";
-    std::cout << IP << std::endl;
-    std::cout << Port << std::endl;
-    std::cout << std::endl;
+    std::cout << "Join:\n";
+    std::cout << "\tClient IP: " << IP << ":" << Port << std::endl << std::endl;
+
+    if (current_client_count == MAXCLIENT) {
+        std::cout << "\tClient list is full\n";
+        result = false;
+        return &result;
+    }
 
     int empty_slot = -1;
 
@@ -59,7 +60,7 @@ bool_t *join_1_svc(char *IP, int Port, struct svc_req *rqstp) {
         if (client_list[i].used == true) {
             if (strcmp(client_list[i].IP, IP) == 0 &&
                 client_list[i].Port == Port) {
-                std::cout << "Client already in the list\n";
+                std::cout << "\tClient already in the list\n";
                 result = true;
                 return &result;
             }
@@ -73,14 +74,14 @@ bool_t *join_1_svc(char *IP, int Port, struct svc_req *rqstp) {
     if (empty_slot != -1) {
         client_list[empty_slot].IP = new char[strlen(IP) + 1];
         strcpy(client_list[empty_slot].IP, IP);
-        std::cout << client_list[empty_slot].IP << std::endl;
 
         client_list[empty_slot].Port = Port;
         client_list[empty_slot].used = true;
         current_client_count++;
         result = true;
     } else {
-        std::cout << "No empty slot for new client\n";
+        std::cout << "\tWerid...\n";
+        std::cout << "\tNo empty slot for new client\n";
         result = false;
     }
 
@@ -90,14 +91,8 @@ bool_t *join_1_svc(char *IP, int Port, struct svc_req *rqstp) {
 bool_t *leave_1_svc(char *IP, int Port, struct svc_req *rqstp) {
     static bool_t result;
 
-    /*
-     * insert server code here
-     */
-
-    std::cout << "In leave_1_svc\n";
-    std::cout << IP << std::endl;
-    std::cout << Port << std::endl;
-    std::cout << std::endl;
+    std::cout << "Leave: \n";
+    std::cout << "\tClient IP: " << IP << ":" << Port << std::endl << std::endl;
 
     for (int i = 0; i < MAXCLIENT; i++) {
         if (client_list[i].used == true) {
@@ -120,8 +115,8 @@ bool_t *subscribe_1_svc(char *IP, int Port, char *Article,
                         struct svc_req *rqstp) {
     static bool_t result;
 
-    printf("In subscribe_1_svc\n");
-    printf("%s\n", Article);
+    printf("Subscribe:\n");
+    std::cout << "\tClient IP: " << IP << ":" << Port << std::endl;
 
     std::string *parsedInput = ParseInput(Article);
 
@@ -135,8 +130,6 @@ bool_t *subscribe_1_svc(char *IP, int Port, char *Article,
         return &result;
     }
 
-    std::cout << IP << std::endl;
-    std::cout << client_list[0].IP << std::endl;
     int i;
     for (i = 0; i < MAXCLIENT; i++) {
         if (client_list[i].used == true) {
@@ -153,17 +146,28 @@ bool_t *subscribe_1_svc(char *IP, int Port, char *Article,
         return &result;
     }
 
-    switch (Article[0]) {
+    if (parsedInput[1] != "") {
+        client_list[i].SubscribedOriginator.insert(parsedInput[1]);
+    }
+
+    if (parsedInput[2] != "") {
+        client_list[i].SubscribedOrg.insert(parsedInput[2]);
+    }
+
+    std::cout << "\tTopic: " << parsedInput[0] << std::endl;
+    std::cout << "\tOriginator: " << parsedInput[1] << std::endl;
+    std::cout << "\tOrganization: " << parsedInput[2] << std::endl << std::endl;
+
+    switch (parsedInput[0][0]) {
         case 'S':
-            if (Article[1] == 'p') {
+            if (parsedInput[0][1] == 'p') {
                 client_list[i].SubscribedList[0] = true;
                 result = true;
-            } else if (Article[1] == 'c') {
+            } else if (parsedInput[0][1] == 'c') {
                 client_list[i].SubscribedList[5] = true;
                 result = true;
             } else
                 result = false;
-
             break;
         case 'L':
             client_list[i].SubscribedList[1] = true;
@@ -201,8 +205,8 @@ bool_t *unsubscribe_1_svc(char *IP, int Port, char *Article,
                           struct svc_req *rqstp) {
     static bool_t result;
 
-    printf("In unsubscribe_1_svc\n");
-    printf("%s\n", Article);
+    printf("Unsubscribe:\n");
+    std::cout << "\tClient IP: " << IP << ":" << Port << std::endl;
 
     // Make sure the input is valid
     std::string *parsedInput = ParseInput(Article);
@@ -232,6 +236,18 @@ bool_t *unsubscribe_1_svc(char *IP, int Port, char *Article,
         result = false;
         return &result;
     }
+
+    if (parsedInput[1] != "") {
+        client_list[i].SubscribedOriginator.erase(parsedInput[1]);
+    }
+
+    if (parsedInput[2] != "") {
+        client_list[i].SubscribedOrg.erase(parsedInput[2]);
+    }
+
+    std::cout << "\tTopic: " << parsedInput[0] << std::endl;
+    std::cout << "\tOriginator: " << parsedInput[1] << std::endl;
+    std::cout << "\tOrganization: " << parsedInput[2] << std::endl << std::endl;
 
     switch (Article[0]) {
         case 'S':
@@ -281,18 +297,20 @@ bool_t *publish_1_svc(char *Article, char *IP, int Port,
                       struct svc_req *rqstp) {
     static bool_t result;
 
-    std::cout << "In publish_1_svc\n";
-    std::cout << Article << std::endl;
+    std::cout << "Publish:\n";
+    std::cout << "\tClient IP: " << IP << ":" << Port << std::endl;
 
     std::string *parsedInput = ParseInput(Article);
 
     if (parsedInput[0] == "" && parsedInput[1] == "" && parsedInput[2] == "") {
         result = false;
+        parsedInput->clear();
         return &result;
     }
 
     if (parsedInput[3] == "") {
         result = false;
+        parsedInput->clear();
         return &result;
     }
 
@@ -336,42 +354,46 @@ bool_t *publish_1_svc(char *Article, char *IP, int Port,
             break;
     }
 
-    std::cout << "Category: " << category_index << std::endl;
-    const int length = parsedInput[3].length();
+    // std::cout << "Category: " << category_index << std::endl;
+    std::cout << "\tTopic: " << parsedInput[0] << std::endl;
+    std::cout << "\tOriginator: " << parsedInput[1] << std::endl;
+    std::cout << "\tOrganization: " << parsedInput[2] << std::endl;
+    std::cout << "\tContent: " << parsedInput[3] << std::endl;
 
-    std::cout << "Length: " << length << std::endl;
+    std::string sendMessage =
+        "Subject: " + parsedInput[0] + "\n" + "Originator: " + parsedInput[1] +
+        "\n" + "Org: " + parsedInput[2] + "\n\t" + parsedInput[3];
+    const int length = sendMessage.length();
 
     char *content_char_array = new char[length + 1];
-    strcpy(content_char_array, parsedInput[3].c_str());
-
-    std::cout << "content: " << content_char_array << std::endl;
+    strcpy(content_char_array, sendMessage.c_str());
 
     for (int i = 0; i < MAXCLIENT; i++) {
         if (client_list[i].used == true) {
-            if (client_list[i].SubscribedList[category_index] == true) {
-                char *subscriber_ip;
-                int subscriber_port;
-
-                subscriber_ip = client_list[i].IP;
-                subscriber_port = client_list[i].Port;
-
-                std::cout << "Sent to " << client_list[i].IP << " "
-                          << subscriber_port << std::endl;
-                sendToClient(subscriber_ip, subscriber_port,
+            if ((category_index != -1 &&
+                 client_list[i].SubscribedList[category_index] == true) ||
+                client_list[i].SubscribedOriginator.find(parsedInput[1]) !=
+                    client_list[i].SubscribedOriginator.end() ||
+                client_list[i].SubscribedOrg.find(parsedInput[2]) !=
+                    client_list[i].SubscribedOrg.end()) {
+                std::cout << "\t> Sent to " << client_list[i].IP << " "
+                          << client_list[i].Port << std::endl;
+                sendToClient(client_list[i].IP, client_list[i].Port,
                              content_char_array);
             }
         }
     }
 
+    std::cout << std::endl;
+    result = true;
+    parsedInput->clear();
     return &result;
 }
 
 bool_t *ping_1_svc(struct svc_req *rqstp) {
-    static bool_t result;
+    static bool_t result = true;
 
-    /*
-     * insert server code here
-     */
+    std::cout << "Ping!\n\n";
 
     return &result;
 }
@@ -380,10 +402,9 @@ void sendToClient(char *ip, int port, char *message) {
     struct sockaddr_in si_other;
     int s, i;
     socklen_t slen = sizeof(si_other);
-    // char buf[BUFLEN];
 
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        die("socket");
+        die((char *)"socket");
     }
 
     memset((char *)&si_other, 0, sizeof(si_other));
@@ -399,25 +420,21 @@ void sendToClient(char *ip, int port, char *message) {
     // send the message
     if (sendto(s, message, strlen(message), 0, (struct sockaddr *)&si_other,
                slen) == -1) {
-        die("sendto()");
+        die((char *)"sendto()");
     }
-
-    // receive a reply and print it
-    // clear the buffer by filling null, it might have previously received data
-    // memset(buf, '\0', BUFLEN);
-    // try to receive some data, this is a blocking call
-    // if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other, &slen) ==
-    //     -1) {
-    //     die("recvfrom()");
-    // }
 }
 
 std::string *ParseInput(std::string input) {
     // input is in the form of "type;originator;org;contents"
     std::string *result = new std::string[4];
+    std::size_t pos;
 
     for (int i = 0; i < 4; i++) {
-        std::size_t pos = input.find(";");
+        pos = input.find(";");
+        if (pos == std::string::npos) {
+            result[i] = input;
+            return result;
+        }
         result[i] = input.substr(0, pos);
         input = input.substr(pos + 1);
     }

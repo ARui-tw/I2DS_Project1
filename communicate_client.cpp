@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  //memset
@@ -17,39 +16,10 @@
 #include <unistd.h>
 
 #include "communicate.h"
+#include "ticket_lock.h"
 
 #define BUFLEN 512
 #define MAXSTRING 120
-
-// REF: https://stackoverflow.com/questions/5385777/implementing-a-fifo-mutex-in-pthreads
-typedef struct ticket_lock {
-    pthread_cond_t cond;
-    pthread_mutex_t mutex;
-    unsigned long queue_head, queue_tail;
-} ticket_lock_t;
-
-#define TICKET_LOCK_INITIALIZER { PTHREAD_COND_INITIALIZER, PTHREAD_MUTEX_INITIALIZER }
-
-void ticket_lock(ticket_lock_t *ticket)
-{
-    unsigned long queue_me;
-
-    pthread_mutex_lock(&ticket->mutex);
-    queue_me = ticket->queue_tail++;
-    while (queue_me != ticket->queue_head)
-    {
-        pthread_cond_wait(&ticket->cond, &ticket->mutex);
-    }
-    pthread_mutex_unlock(&ticket->mutex);
-}
-
-void ticket_unlock(ticket_lock_t *ticket)
-{
-    pthread_mutex_lock(&ticket->mutex);
-    ticket->queue_head++;
-    pthread_cond_broadcast(&ticket->cond);
-    pthread_mutex_unlock(&ticket->mutex);
-}
 
 ticket_lock_t lock = TICKET_LOCK_INITIALIZER;
 
@@ -108,66 +78,69 @@ void *startUPServer(void *a) {
     socklen_t slen = sizeof(si_other);
     s = (int *)a;
 
-
-    while (1) { 
-
+    while (1) {
+        // clean the buffer
+        memset(buf, '\0', BUFLEN);
         // try to receive some data, this is a blocking call
         if ((recv_len = recvfrom(*s, buf, BUFLEN, 0,
                                  (struct sockaddr *)&si_other, &slen)) == -1) {
-            die("recvfrom()");
+            die((char *)"recvfrom()");
         }
 
-        printf("acquired lock\n");
         ticket_lock(&lock);
-        // print details of the client/peer and the data received
-        printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr),
-               ntohs(si_other.sin_port));
-        printf("Data: %s\n", buf);
+        printf("\n\nReceived packet from host:\n");
+        printf("---------------------\n");
+        printf("%s\n", buf);
+        printf("---------------------\n");
         ticket_unlock(&lock);
-
-        // now reply the client with the same data
-        // if (sendto(*s, buf, recv_len, 0, (struct sockaddr *)&si_other, slen) ==
-        //     -1) {
-        //     die("sendto()");
-        // }
     }
 
     close(*s);
 }
 
+void print_menu() {
+    printf("\nMenu: \n");
+    printf("\t1. Join\n");
+    printf("\t2. Leave\n");
+    printf("\t3. Subscribe\n");
+    printf("\t4. Unsubscribe\n");
+    printf("\t5. Publish\n");
+    printf("\t6. Ping\n");
+    printf("\tq. Quit\n");
+    printf("> ");
+}
+
+char *client_IP;
+unsigned int UDP_Port;
+CLIENT *clnt;
+
 void communicate_prog_1(char *host) {
-    CLIENT *clnt;
     bool_t *result_join;
     bool_t *result_leave;
     bool_t *result_subscirbe;
     bool_t *result_unsubscirbe;
-    char *unsubscribe_1_IP;
-    int unsubscribe_1_Port;
     char *unsubscribe_1_Article;
     bool_t *result_publish;
     char *publish_1_Article;
-    char *publish_1_IP;
-    int publish_1_Port;
-    bool_t *result_6;
+    bool_t *result_ping;
 
     // if (pthread_mutex_init(&lock, NULL) != 0) {
     //     printf("\n mutex init has failed\n");
     //     return;
     // }
 
-    char *client_IP = get_current_ip();
+    client_IP = get_current_ip();
 
     printf("Client IP: %s\n", client_IP);
 
     // Create UDP socket --------
-    unsigned int UDP_Port;
     struct sockaddr_in si_me, si_other;
 
     int s, i;
 
     // create a UDP socket
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        die("socket");
+        die((char *)"socket");
     }
 
     printf("UDP Server Up!\n");
@@ -181,7 +154,7 @@ void communicate_prog_1(char *host) {
     si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (bind(s, (struct sockaddr *)&si_me, sizeof(si_me)) == -1) {
-        die("bind");
+        die((char *)"bind");
     }
 
     struct sockaddr_in my_addr;
@@ -195,24 +168,22 @@ void communicate_prog_1(char *host) {
 
     pthread_t t;
 
-    int rc;
+    int rc = pthread_create(&t, NULL, startUPServer, (void *)&s);
 
-    rc = pthread_create(&t, NULL, startUPServer, (void *)&s);
-
-    char ch;
+    char ch, tmp_ch;
     while (1) {
-        // TODO: Add menu, and formatting
         ticket_lock(&lock);
-        printf("> ");
-        ch = getchar();
 
-        if (ch != '\n') getchar();
-        else {
-            printf("> ");
+        print_menu();
+        ch = getchar();
+        while (ch == '\n') {
+            print_menu();
             ch = getchar();
         }
+        tmp_ch = getchar();
 
         if (ch == 'q' || ch == EOF) {
+            leave_1(client_IP, UDP_Port, clnt);
             break;
         }
 
@@ -226,9 +197,10 @@ void communicate_prog_1(char *host) {
             case '1':
                 result_join = join_1(client_IP, UDP_Port, clnt);
 
-                // FIXME: better handler when server is down
                 if (result_join == (bool_t *)NULL) {
-                    clnt_perror(clnt, "call failed");
+                    // clnt_perror(clnt, "call failed");
+                    printf("Server is down\n");
+                    break;
                 }
 
                 if (*result_join)
@@ -240,9 +212,10 @@ void communicate_prog_1(char *host) {
             case '2':
                 result_leave = leave_1(client_IP, UDP_Port, clnt);
 
-                // FIXME: better handler when server is down
                 if (result_leave == (bool_t *)NULL) {
-                    clnt_perror(clnt, "call failed");
+                    // clnt_perror(clnt, "call failed");
+                    printf("Server is down\n");
+                    break;
                 }
 
                 if (*result_leave)
@@ -253,81 +226,115 @@ void communicate_prog_1(char *host) {
             case '3':
                 char subscribe_topic[12];
 
-                printf("Please input the type you wand to subscirbe:\n> ");
-                scanf("%s", subscribe_topic);
-                getchar();
+                printf("Please input the type you wand to subscirbe:\n\t> ");
+                fgets(subscribe_topic, MAXSTRING, stdin);
 
-                printf("Subscribe topic: %s\n", subscribe_topic);
+                if ((strlen(subscribe_topic) > 0) &&
+                    (subscribe_topic[strlen(subscribe_topic) - 1] == '\n'))
+                    subscribe_topic[strlen(subscribe_topic) - 1] = '\0';
+
                 result_subscirbe =
                     subscribe_1(client_IP, UDP_Port, subscribe_topic, clnt);
 
-                // FIXME: better handler when server is down
                 if (result_subscirbe == (bool_t *)NULL) {
-                    clnt_perror(clnt, "call failed");
+                    // clnt_perror(clnt, "call failed");
+                    printf("Server is down\n");
+                    break;
                 }
+
                 // FIXME: Add message for subscribe fail or client not found?
-                if (*result_subscirbe)
+                if (*result_subscirbe) {
                     printf("Subscribe Successfully\n");
-                else {
+                    while (((ch = getchar()) != '\n') && (ch != EOF))
+                        ;
+                } else {
                     printf("Subscribe Failed\n");
-                    while(((ch = getchar()) !='\n') && (ch != EOF));
+                    while (((ch = getchar()) != '\n') && (ch != EOF))
+                        ;
                 }
 
                 break;
             case '4':
                 char unsubscribe_topic[12];
 
-                printf("Please input the type you wand to unsubscirbe:\n> ");
-                scanf("%s", unsubscribe_topic);
-                getchar();
+                printf("Please input the type you wand to unsubscirbe:\n\t> ");
+                // scanf("%s", unsubscribe_topic);
+                if ((strlen(unsubscribe_topic) > 0) &&
+                    (unsubscribe_topic[strlen(unsubscribe_topic) - 1] == '\n'))
+                    unsubscribe_topic[strlen(unsubscribe_topic) - 1] = '\0';
+                // tmp_ch = getchar();
 
                 printf("Unsubscribe topic: %s\n", unsubscribe_topic);
 
                 result_unsubscirbe =
                     unsubscribe_1(client_IP, UDP_Port, unsubscribe_topic, clnt);
 
+                if (result_unsubscirbe == (bool_t *)NULL) {
+                    // clnt_perror(clnt, "call failed");
+                    printf("server is down\n");
+                    break;
+                }
+
                 // FIXME: Add message for subscribe fail or client not found?
-                if (*result_unsubscirbe)
+                if (*result_unsubscirbe) {
                     printf("Unsubscribe Successfully\n");
-                else
+                    while (((ch = getchar()) != '\n') && (ch != EOF))
+                        ;
+                } else {
                     printf("Unsubscribe Failed\n");
+                    while (((ch = getchar()) != '\n') && (ch != EOF))
+                        ;
+                }
 
                 break;
             case '5':
                 char publish_content[MAXSTRING];
 
-                printf("Please input the content you wand to publish:\n> ");
-                scanf("%s", publish_content);
-                getchar();
+                printf("Please input the content you wand to publish:\n\t> ");
+                // scanf("%s", publish_content);
+                fgets(publish_content, MAXSTRING, stdin);
+
+                if ((strlen(publish_content) > 0) &&
+                    (publish_content[strlen(publish_content) - 1] == '\n'))
+                    publish_content[strlen(publish_content) - 1] = '\0';
 
                 printf("Publish Content: %s\n", publish_content);
                 result_publish =
                     publish_1(publish_content, client_IP, UDP_Port, clnt);
 
-                // FIXME: better handler when server is down
                 if (result_publish == (bool_t *)NULL) {
-                    clnt_perror(clnt, "call failed");
+                    // clnt_perror(clnt, "call failed");
+                    printf("Server is down\n");
+                    break;
+                }
+
+                if (*result_publish) {
+                    printf("Publish Successfully\n");
+                } else {
+                    printf("Publish Failed\n");
                 }
 
                 break;
             case '6':
-                result_6 = ping_1(clnt);
-                if (result_6 == (bool_t *)NULL) {
-                    // clnt_perror (clnt, "call failed");
-                    printf("Server is down\n");
+                result_ping = ping_1(clnt);
 
-                } else {
+                if (result_ping == (bool_t *)NULL)
+                    printf("Server is down\n");
+                else
                     printf("Server is up\n");
-                }
+
                 break;
 
             default:
                 printf("Invalid option\n");
-                while(((ch = getchar()) !='\n') && (ch != EOF));
+
+                if (tmp_ch != '\n')
+                    while (((ch = getchar()) != '\n') && (ch != EOF))
+                        ;
+
                 break;
         }
         ticket_unlock(&lock);
-        printf("release lock\n");
     }
 
     // kill UDP server thread
@@ -338,6 +345,12 @@ void communicate_prog_1(char *host) {
 #endif /* DEBUG */
 }
 
+void intHandler(int dummy) {
+    printf("Interrupted\n");
+    leave_1(client_IP, UDP_Port, clnt);
+    exit(0);
+}
+
 int main(int argc, char *argv[]) {
     char *host;
 
@@ -346,6 +359,9 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     host = argv[1];
+
+    signal(SIGINT, intHandler);
+
     communicate_prog_1(host);
     exit(0);
 }
