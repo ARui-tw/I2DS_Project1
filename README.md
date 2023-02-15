@@ -1,9 +1,12 @@
+# CSCi 5105 Project 1: PubSub
+[GitHub Repo](https://github.com/ARui-tw/I2DS_Project1)
+
 ## Team members and contributions
-Group: 6  
-Team members:  
-* Eric Chen (chen8332@umn.edu)  
-* Sai Vanamala (vanam017@umn.edu)  
-* Rohan Shanbhag (shanb020@umn.edu)  
+* Group: 6  
+* Team members:  
+	* Eric Chen (chen8332@umn.edu)  
+	* Sai Vanamala (vanam017@umn.edu)  
+	* Rohan Shanbhag (shanb020@umn.edu)  
 
 ### Member contributions:
 We opted to work together as a team throughout the coding/development process by working together through Discord, meeting generally every night for an hour or two over the course of the project. Each team member shared equal responsibility for overseeing the code written, the design decisions/documentation, and the test cases. All three of us were working together on call to complete the `Join()`, `Leave()`, `Ping()`, `Subscribe()`, `Publish()` and final Server → Client functionality.
@@ -52,7 +55,7 @@ We decided upon the design of our Publish Subscribe System for Project 1 amongst
 			* Run the client: `./communicate_client localhost`
 			* \<user enters> "1"
 			* \<user enters> "5"
-			* \<user enters> "Science;;UMN;Science;;UMN;Science is a systematic approach to understanding the natural world, based on empirical evidence.
+			* \<user enters> "Science;;UMN;Science;;UMN;Science is a systematic approach to understanding the natural world, based on empirical evidence."
 			* \<user enters> "q"
 
 	* Expected results:
